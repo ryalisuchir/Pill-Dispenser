@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>SPT 1.0 Software</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Verdana, sans-serif;
+      background-color: #f0f0f0;
+    }
+      input[type=text] {
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        font-size: 16px;
+      }
+
+    .loader {
+      width: 50%;
+      height: 20px;
+      background-color: #ddd;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .bar {
+      height: 100%;
+      background-color: #4CAF50;
+      border-radius: 10px;
+      animation: progress 3s;
+    }
+
+    @keyframes progress {
+      from {
+        width: 0%;
+      }
+
+      to {
+        width: 100%;
+      }
+    }
+
+    #content {
+      display: none;
+      text-align: center;
+    }
+
+    h1 {
+      color: #2d3e52;
+    }
+
+    #datetime-selectors {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .date-selector,
+    .time-selector {
+      margin: 0 10px;
+    }
+
+    input[type="submit"] {
+      background-color: #2d3e52;
+      color: white;
+      font-weight: bold;
+      font-size: 1.2em;
+      border-radius: 20px;
+      padding: 10px 20px;
+      border: none;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #4d5d6f;
+    }
+  </style>
+</head>
+
+<body>
+    <div class="loader">
+        <div class="bar"></div>
+    </div>
+
+    <div id="content">
+        <h1>SPT 1.0 Software</h1>
+        <p>Select a date and time:</p>
+
+		<form action="/get">
+            <div id="datetime-selectors">
+                <div class="date-selector">
+                    <label for="date">Date:</label>
+                    <input type="date" id="date" name="date">
+                </div>
+
+                <div class="time-selector">
+                    <label for="time">Time:</label>
+                    <input type="time" id="time" name="time">
+                </div>
+
+            </div>
+
+            <label for="pill1">Dispense pill 1: </label>
+            <input type="checkbox" id="pill1" name="pill1">
+            <br>
+            <label for="pill1">Dispense pill 2: </label>
+            <input type="checkbox" id="pill2" name="pill2">
+            <br>
+            <label for="pill1">Dispense pill 3: </label>
+            <input type="checkbox" id="pill3" name="pill3">
+        <br><br>
+
+        <center><input type="submit" id="submit" value="Submit" style="display: none;"></center>
+        </form>
+	</div>
+
+  <script>
+    window.onload = function() {
+      var loader = document.querySelector(".loader");
+      var content = document.querySelector("#content");
+
+      setTimeout(function() {
+        loader.style.display = "none";
+        content.style.display = "block";
+      }, 3000);
+
+      var submitBtn = document.getElementById("submit");
+      var dateSelector = document.getElementById("date");
+      var timeSelector = document.getElementById("time");
+
+      dateSelector.addEventListener("change", checkDateTime);
+      timeSelector.addEventListener("change", checkDateTime);
+
+      function checkDateTime() {
+        if (dateSelector.value !== "" && timeSelector.value !== "") {
+          submitBtn.style.display = "block";
+        } else {
+          submitBtn.style.display = "none";
+        }
+      }
+    }
+  </script>
+</body>
+
+</html>
