@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>SPT 1.0 Software</title>
+  <title>Pill Dispensing Software</title>
   <style>
     body {
       margin: 0;
@@ -16,12 +16,13 @@
       font-family: Verdana, sans-serif;
       background-color: #f0f0f0;
     }
-      input[type=text] {
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px solid #ccc;
-        font-size: 16px;
-      }
+
+    input[type=text] {
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
 
     .loader {
       width: 50%;
@@ -51,6 +52,8 @@
     #content {
       display: none;
       text-align: center;
+      width: 90%;
+      max-width: 800px;
     }
 
     h1 {
@@ -70,7 +73,8 @@
       margin: 0 10px;
     }
 
-    input[type="submit"] {
+    input[type="submit"],
+    button {
       background-color: #2d3e52;
       color: white;
       font-weight: bold;
@@ -82,73 +86,227 @@
       cursor: pointer;
     }
 
-    input[type="submit"]:hover {
+    input[type="submit"]:hover,
+    button:hover {
       background-color: #4d5d6f;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #eee;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: #555;
+    }
+
+    #pointerDisplay {
+      margin-top: 15px;
+      font-size: 1.1em;
+      color: #2d3e52;
     }
   </style>
 </head>
 
 <body>
-    <div class="loader">
-        <div class="bar"></div>
-    </div>
+  <div class="loader">
+    <div class="bar"></div>
+  </div>
 
-    <div id="content">
-        <h1>SPT 1.0 Software</h1>
-        <p>Select a date and time:</p>
+  <div id="content">
+    <h1>Pill Dispensing Software:</h1>
+    <p>Select a date and time:</p>
 
-		<form action="/get">
-            <div id="datetime-selectors">
-                <div class="date-selector">
-                    <label for="date">Date:</label>
-                    <input type="date" id="date" name="date">
-                </div>
+    <form id="schedForm">
+      <div id="datetime-selectors">
+        <div class="date-selector">
+          <label for="date">Date:</label>
+          <input type="date" id="date" name="date" required>
+        </div>
 
-                <div class="time-selector">
-                    <label for="time">Time:</label>
-                    <input type="time" id="time" name="time">
-                </div>
+        <div class="time-selector">
+          <label for="time">Time:</label>
+          <input type="time" id="time" name="time" required>
+        </div>
+      </div>
 
-            </div>
+      <label><input type="checkbox" id="pill1" value="1"> Dispense pill 1</label><br>
+      <label><input type="checkbox" id="pill2" value="2"> Dispense pill 2</label><br>
+      <label><input type="checkbox" id="pill3" value="3"> Dispense pill 3</label><br><br>
 
-            <label for="pill1">Dispense pill 1: </label>
-            <input type="checkbox" id="pill1" name="pill1">
-            <br>
-            <label for="pill1">Dispense pill 2: </label>
-            <input type="checkbox" id="pill2" name="pill2">
-            <br>
-            <label for="pill1">Dispense pill 3: </label>
-            <input type="checkbox" id="pill3" name="pill3">
-        <br><br>
+      <center><input type="submit" id="submit" value="Submit" style="display:none;"></center>
+    </form>
 
-        <center><input type="submit" id="submit" value="Submit" style="display: none;"></center>
-        </form>
-	</div>
+    <div id="status"></div>
 
-  <script>
-    window.onload = function() {
-      var loader = document.querySelector(".loader");
-      var content = document.querySelector("#content");
+    <h2>Upcoming Dispenses</h2>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Date / Time</th><th>Epoch (s)</th><th>Pills</th></tr>
+      </thead>
+      <tbody id="scheduleTable"></tbody>
+    </table>
 
-      setTimeout(function() {
-        loader.style.display = "none";
-        content.style.display = "block";
-      }, 3000);
+    <!-- Pointer Display + Button -->
+    <div id="pointerDisplay">Pointer: loading...</div>
+    <button id="advancePointerBtn">Advance Pointer</button>
+  </div>
 
-      var submitBtn = document.getElementById("submit");
-      var dateSelector = document.getElementById("date");
-      var timeSelector = document.getElementById("time");
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, get, set, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-      dateSelector.addEventListener("change", checkDateTime);
-      timeSelector.addEventListener("change", checkDateTime);
+    // Your Firebase config
+    const firebaseConfig = {
+      apiKey: "[FIREBASE_API]",
+      databaseURL: "[FIREBASE_DATABASE_URL]"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-      function checkDateTime() {
-        if (dateSelector.value !== "" && timeSelector.value !== "") {
-          submitBtn.style.display = "block";
-        } else {
-          submitBtn.style.display = "none";
-        }
+    const form = document.getElementById('schedForm');
+    const submitBtn = document.getElementById('submit');
+    const dateSelector = document.getElementById('date');
+    const timeSelector = document.getElementById('time');
+    const statusEl = document.getElementById('status');
+    const tableBody = document.getElementById('scheduleTable');
+    const pointerDisplay = document.getElementById('pointerDisplay');
+    const advancePointerBtn = document.getElementById('advancePointerBtn');
+
+    function epochToString(epoch) {
+      const d = new Date(epoch * 1000);
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0') + ' ' +
+        String(d.getHours()).padStart(2, '0') + ':' +
+        String(d.getMinutes()).padStart(2, '0');
+    }
+
+    async function readArrays() {
+      const [tSnap, dtSnap, pSnap] = await Promise.all([
+        get(ref(db, '/test/time')),
+        get(ref(db, '/test/dateTimeArray')),
+        get(ref(db, '/test/pills'))
+      ]);
+      let times = tSnap.exists() ? tSnap.val() : [];
+      let dts = dtSnap.exists() ? dtSnap.val() : [];
+      let pills = pSnap.exists() ? pSnap.val() : [];
+      if (times && typeof times === 'object' && !Array.isArray(times)) times = Object.values(times);
+      if (dts && typeof dts === 'object' && !Array.isArray(dts)) dts = Object.values(dts);
+      if (pills && typeof pills === 'object' && !Array.isArray(pills)) pills = Object.values(pills);
+      return { times, dts, pills };
+    }
+
+    async function writeArrays(entries) {
+      entries.sort((a, b) => a.time - b.time);
+      await Promise.all([
+        set(ref(db, '/test/time'), entries.map(e => e.time)),
+        set(ref(db, '/test/dateTimeArray'), entries.map(e => e.dt)),
+        set(ref(db, '/test/pills'), entries.map(e => e.pills))
+      ]);
+    }
+
+    async function refreshTable() {
+      const { times, dts, pills } = await readArrays();
+      const entries = [];
+      const len = Math.max(times.length, dts.length, pills.length);
+      for (let i = 0; i < len; i++) {
+        entries.push({ time: Number(times[i]), dt: dts[i] || epochToString(times[i]), pills: Number(pills[i]) });
       }
+      entries.sort((a, b) => a.time - b.time);
+
+      tableBody.innerHTML = '';
+      entries.forEach((e, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i + 1}</td><td>${e.dt}</td><td>${e.time}</td><td>${e.pills}</td>`;
+        tableBody.appendChild(tr);
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const dateVal = dateSelector.value;
+      const timeVal = timeSelector.value;
+      if (!dateVal || !timeVal) return;
+
+      const pills = [];
+      if (document.getElementById('pill1').checked) pills.push('1');
+      if (document.getElementById('pill2').checked) pills.push('2');
+      if (document.getElementById('pill3').checked) pills.push('3');
+      if (pills.length === 0) {
+        alert('Select at least one pill.');
+        return;
+      }
+      const pillsInt = parseInt(pills.join(''), 10);
+
+      const localIso = dateVal + 'T' + timeVal + ':00';
+      const selectedDate = new Date(localIso);
+      const epochSec = Math.floor(selectedDate.getTime() / 1000);
+      const dtLabel = epochToString(epochSec);
+
+      statusEl.textContent = 'Saving...';
+      const { times, dts, pills: pillArr } = await readArrays();
+      const entries = [];
+      const len = Math.max(times.length, dts.length, pillArr.length);
+      for (let i = 0; i < len; i++) {
+        entries.push({ time: Number(times[i]), dt: dts[i], pills: Number(pillArr[i]) });
+      }
+      entries.push({ time: epochSec, dt: dtLabel, pills: pillsInt });
+
+      await writeArrays(entries);
+      await refreshTable();
+      statusEl.textContent = 'Saved successfully!';
+    });
+
+    dateSelector.addEventListener('change', checkDateTime);
+    timeSelector.addEventListener('change', checkDateTime);
+    function checkDateTime() {
+      submitBtn.style.display = (dateSelector.value && timeSelector.value) ? 'block' : 'none';
+    }
+
+    // --- Pointer logic ---
+    const pointerRef = ref(db, "/test/pointer");
+
+    // Show pointer live
+    onValue(pointerRef, (snap) => {
+      if (snap.exists()) {
+        pointerDisplay.textContent = "Pointer: " + snap.val();
+      } else {
+        pointerDisplay.textContent = "Pointer: not set";
+      }
+    });
+
+    // Advance pointer safely
+    async function incrementPointer() {
+      await runTransaction(pointerRef, (currentVal) => {
+        if (currentVal === null) return 1; // initialize at 1
+        return currentVal + 1;
+      });
+    }
+
+    advancePointerBtn.addEventListener("click", incrementPointer);
+
+    // Loader -> content
+    window.onload = async function () {
+      setTimeout(async () => {
+        document.querySelector(".loader").style.display = "none";
+        document.querySelector("#content").style.display = "block";
+        await refreshTable();
+      }, 3000);
     }
   </script>
 </body>
